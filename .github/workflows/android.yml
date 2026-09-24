@@ -33,19 +33,27 @@ jobs:
 
       - name: Prepare build environment
         run: |
-          # Restore debug.keystore from base64 if present
+          # 1. Restore debug.keystore from base64 if present, or generate it
           if [ -f "debug.keystore.base64" ] && [ ! -f "debug.keystore" ]; then
             echo "Restoring debug.keystore from base64..."
-            base64 -d debug.keystore.base64 > debug.keystore
+            base64 -d debug.keystore.base64 > debug.keystore || true
           fi
 
-          # Prepare .env from .env.example if missing
+          if [ ! -f "debug.keystore" ] || [ ! -s "debug.keystore" ]; then
+            echo "debug.keystore not found or empty. Generating standard debug keystore via keytool..."
+            keytool -genkeypair -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          fi
+
+          ls -lh debug.keystore
+
+          # 2. Prepare .env from .env.example if missing
           if [ -f ".env.example" ] && [ ! -f ".env" ]; then
             echo "Copying .env.example to .env..."
             cp .env.example .env
           fi
+          touch .env
 
-          # Generate gradle wrapper if not present
+          # 3. Generate gradle wrapper if not present
           if [ ! -f "gradlew" ]; then
             echo "Generating Gradle wrapper..."
             gradle wrapper
