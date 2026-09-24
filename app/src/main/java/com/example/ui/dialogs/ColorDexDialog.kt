@@ -262,7 +262,7 @@ fun ColorDexDialog(
                                     fontWeight = FontWeight.Medium
                                 )
 
-                                if (isUnlocked && foundEntity != null) {
+                                if (foundEntity != null) {
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Surface(
                                         shape = RoundedCornerShape(4.dp),

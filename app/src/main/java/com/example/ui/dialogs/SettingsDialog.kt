@@ -17,11 +17,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -204,7 +204,7 @@ fun SettingsDialog(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.VolumeUp, contentDescription = null, tint = NeonPink)
+                                Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = null, tint = NeonPink)
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column {
                                     Text("Звуковые эффекты", fontWeight = FontWeight.Bold, color = TextPrimary)
@@ -260,7 +260,7 @@ fun SettingsDialog(
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.HelpOutline, contentDescription = null, tint = NeonGreen)
+                            Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = null, tint = NeonGreen)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("КАК ИГРАТЬ", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = NeonGreen)
                         }
