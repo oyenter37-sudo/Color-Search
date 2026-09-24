@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Outer Viewfinder Ticks -->
+    <path
+        android:pathData="M54,23 L54,28 M54,80 L54,85 M23,54 L28,54 M80,54 L85,54"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+
+    <!-- Color Wheel Segments (Center is 54, 54, radius ~24) -->
+    <!-- Segment 1: Red / Neon Coral (Top - 60 deg) -->
+    <path
+        android:pathData="M54,54 L54,30 A24,24 0 0,1 74.78,42 L54,54 Z"
+        android:fillColor="#FF2A55" />
+    <!-- Segment 2: Orange / Amber (60 - 110 deg) -->
+    <path
+        android:pathData="M54,54 L74.78,42 A24,24 0 0,1 77.55,62.2 L54,54 Z"
+        android:fillColor="#FF8500" />
+    <!-- Segment 3: Yellow / Lime (110 - 160 deg) -->
+    <path
+        android:pathData="M54,54 L77.55,62.2 A24,24 0 0,1 62.2,77.55 L54,54 Z"
+        android:fillColor="#FFDE00" />
+    <!-- Segment 4: Emerald / Green (160 - 210 deg) -->
+    <path
+        android:pathData="M54,54 L62.2,77.55 A24,24 0 0,1 42,74.78 L54,54 Z"
+        android:fillColor="#00E676" />
+    <!-- Segment 5: Cyan / Azure (210 - 260 deg) -->
+    <path
+        android:pathData="M54,54 L42,74.78 A24,24 0 0,1 30.45,54 L54,54 Z"
+        android:fillColor="#00E5FF" />
+    <!-- Segment 6: Blue / Indigo (260 - 310 deg) -->
+    <path
+        android:pathData="M54,54 L30.45,54 A24,24 0 0,1 37.03,37.03 L54,54 Z"
+        android:fillColor="#3D5AFE" />
+    <!-- Segment 7: Purple / Magenta (310 - 360 deg) -->
+    <path
+        android:pathData="M54,54 L37.03,37.03 A24,24 0 0,1 54,30 L54,54 Z"
+        android:fillColor="#D500F9" />
+
+    <!-- Outer Ring Border -->
+    <path
+        android:pathData="M54,30 A24,24 0 1,1 53.9,30"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.5" />
+
+    <!-- Center Camera Aperture / Reticle Hub -->
+    <path
+        android:pathData="M54,43 A11,11 0 1,1 53.9,43"
+        android:fillColor="#0F0C20"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2.5" />
+
+    <!-- Center Crosshair Center Dot -->
+    <path
+        android:pathData="M54,50 A4,4 0 1,1 53.9,50"
+        android:fillColor="#00F5D4" />
+
+    <!-- Target Indicator Pointer at Top -->
+    <path
+        android:pathData="M54,22 L57.5,27 L50.5,27 Z"
+        android:fillColor="#FFFFFF" />
+</vector>
