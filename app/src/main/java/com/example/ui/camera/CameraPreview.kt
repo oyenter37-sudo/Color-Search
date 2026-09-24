@@ -2,6 +2,7 @@ package com.example.ui.camera
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.view.ViewGroup
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -77,17 +78,93 @@ fun CameraPreview(
     }
 
     var camera by remember { mutableStateOf<Camera?>(null) }
+    var previewView by remember { mutableStateOf<PreviewView?>(null) }
+    var cameraProvider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
     val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
 
     DisposableEffect(Unit) {
         onDispose {
-            cameraExecutor.shutdown()
+            try {
+                cameraExecutor.shutdown()
+            } catch (_: Throwable) {}
         }
     }
 
-    // Handle Torch
+    // Safely enable / disable torch with capability checks
     LaunchedEffect(isTorchOn, camera) {
-        camera?.cameraControl?.enableTorch(isTorchOn)
+        try {
+            val cam = camera
+            if (cam != null && cam.cameraInfo.hasFlashUnit()) {
+                cam.cameraControl.enableTorch(isTorchOn)
+            }
+        } catch (_: Throwable) {
+        }
+    }
+
+    // Bind camera whenever permissions, preview view, or camera lens changes
+    LaunchedEffect(hasCameraPermission, useFrontCamera, previewView, cameraProvider) {
+        val cp = cameraProvider ?: return@LaunchedEffect
+        val pv = previewView ?: return@LaunchedEffect
+        if (!hasCameraPermission) return@LaunchedEffect
+
+        try {
+            val desiredSelector = if (useFrontCamera) {
+                CameraSelector.DEFAULT_FRONT_CAMERA
+            } else {
+                CameraSelector.DEFAULT_BACK_CAMERA
+            }
+
+            val fallbackSelector = if (useFrontCamera) {
+                CameraSelector.DEFAULT_BACK_CAMERA
+            } else {
+                CameraSelector.DEFAULT_FRONT_CAMERA
+            }
+
+            val actualSelector = when {
+                cp.hasCamera(desiredSelector) -> desiredSelector
+                cp.hasCamera(fallbackSelector) -> fallbackSelector
+                else -> null
+            } ?: return@LaunchedEffect
+
+            val preview = Preview.Builder().build().also {
+                it.surfaceProvider = pv.surfaceProvider
+            }
+
+            var lastAnalysisTime = 0L
+
+            val imageAnalysis = ImageAnalysis.Builder()
+                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                .build()
+                .also { analysis ->
+                    analysis.setAnalyzer(cameraExecutor) { imageProxy ->
+                        try {
+                            val now = System.currentTimeMillis()
+                            if (now - lastAnalysisTime >= 60) { // ~16 FPS, light on CPU
+                                lastAnalysisTime = now
+                                extractCenterColor(imageProxy) { r, g, b ->
+                                    ContextCompat.getMainExecutor(context).execute {
+                                        onColorSampled(r, g, b)
+                                    }
+                                }
+                            }
+                        } catch (_: Throwable) {
+                        } finally {
+                            try {
+                                imageProxy.close()
+                            } catch (_: Throwable) {}
+                        }
+                    }
+                }
+
+            cp.unbindAll()
+            camera = cp.bindToLifecycle(
+                lifecycleOwner,
+                actualSelector,
+                preview,
+                imageAnalysis
+            )
+        } catch (_: Throwable) {
+        }
     }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -97,63 +174,24 @@ fun CameraPreview(
                     .fillMaxSize()
                     .testTag("camera_preview_view"),
                 factory = { ctx ->
-                    val previewView = PreviewView(ctx).apply {
+                    val pv = PreviewView(ctx).apply {
                         layoutParams = ViewGroup.LayoutParams(
                             ViewGroup.LayoutParams.MATCH_PARENT,
                             ViewGroup.LayoutParams.MATCH_PARENT
                         )
                         scaleType = PreviewView.ScaleType.FILL_CENTER
                     }
+                    previewView = pv
 
                     val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
                     cameraProviderFuture.addListener({
                         try {
-                            val cameraProvider = cameraProviderFuture.get()
-
-                            val preview = Preview.Builder().build().also {
-                                it.surfaceProvider = previewView.surfaceProvider
-                            }
-
-                            val cameraSelector = if (useFrontCamera) {
-                                CameraSelector.DEFAULT_FRONT_CAMERA
-                            } else {
-                                CameraSelector.DEFAULT_BACK_CAMERA
-                            }
-
-                            var lastAnalysisTime = 0L
-
-                            val imageAnalysis = ImageAnalysis.Builder()
-                                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                                .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
-                                .build()
-                                .also { analysis ->
-                                    analysis.setAnalyzer(cameraExecutor) { imageProxy ->
-                                        val now = System.currentTimeMillis()
-                                        if (now - lastAnalysisTime >= 50) { // ~20 FPS
-                                            lastAnalysisTime = now
-                                            analyzeCenterPixels(imageProxy) { r, g, b ->
-                                                onColorSampled(r, g, b)
-                                            }
-                                        }
-                                        imageProxy.close()
-                                    }
-                                }
-
-                            cameraProvider.unbindAll()
-                            camera = cameraProvider.bindToLifecycle(
-                                lifecycleOwner,
-                                cameraSelector,
-                                preview,
-                                imageAnalysis
-                            )
-                        } catch (_: Exception) {
+                            cameraProvider = cameraProviderFuture.get()
+                        } catch (_: Throwable) {
                         }
                     }, ContextCompat.getMainExecutor(ctx))
 
-                    previewView
-                },
-                update = {
-                    // Rebind if camera selector changed
+                    pv
                 }
             )
         } else {
@@ -201,71 +239,121 @@ fun CameraPreview(
 }
 
 /**
- * Extracts average RGB from the center 24x24 pixels of a YUV_420_888 frame.
+ * Safely extracts average RGB from the center of the frame.
+ * Uses ImageProxy.toBitmap() when available, with a bulletproof YUV buffer fallback.
  */
-private fun analyzeCenterPixels(
+private fun extractCenterColor(
     image: ImageProxy,
     onResult: (r: Int, g: Int, b: Int) -> Unit
 ) {
-    val planes = image.planes
-    if (planes.size < 3) return
+    try {
+        val bitmap: Bitmap? = try {
+            image.toBitmap()
+        } catch (_: Throwable) {
+            null
+        }
 
-    val yPlane = planes[0]
-    val uPlane = planes[1]
-    val vPlane = planes[2]
+        if (bitmap != null) {
+            val cx = bitmap.width / 2
+            val cy = bitmap.height / 2
+            var sumR = 0L
+            var sumG = 0L
+            var sumB = 0L
+            var count = 0
 
-    val yBuffer = yPlane.buffer
-    val uBuffer = uPlane.buffer
-    val vBuffer = vPlane.buffer
+            val radius = 4 // sample 9x9 pixels in center
+            for (dy in -radius..radius) {
+                for (dx in -radius..radius) {
+                    val px = (cx + dx).coerceIn(0, bitmap.width - 1)
+                    val py = (cy + dy).coerceIn(0, bitmap.height - 1)
+                    val pixel = bitmap.getPixel(px, py)
+                    sumR += android.graphics.Color.red(pixel)
+                    sumG += android.graphics.Color.green(pixel)
+                    sumB += android.graphics.Color.blue(pixel)
+                    count++
+                }
+            }
 
-    val width = image.width
-    val height = image.height
-
-    val centerX = width / 2
-    val centerY = height / 2
-    val sampleRadius = 12 // 24x24 box
-
-    var sumR = 0L
-    var sumG = 0L
-    var sumB = 0L
-    var count = 0
-
-    val yRowStride = yPlane.rowStride
-    val yPixelStride = yPlane.pixelStride
-    val uRowStride = uPlane.rowStride
-    val uPixelStride = uPlane.pixelStride
-    val vRowStride = vPlane.rowStride
-    val vPixelStride = vPlane.pixelStride
-
-    for (y in (centerY - sampleRadius).coerceAtLeast(0) until (centerY + sampleRadius).coerceAtMost(height)) {
-        for (x in (centerX - sampleRadius).coerceAtLeast(0) until (centerX + sampleRadius).coerceAtMost(width)) {
-            val yIndex = y * yRowStride + x * yPixelStride
-            val uvX = x / 2
-            val uvY = y / 2
-            val uIndex = uvY * uRowStride + uvX * uPixelStride
-            val vIndex = uvY * vRowStride + uvX * vPixelStride
-
-            if (yIndex < yBuffer.limit() && uIndex < uBuffer.limit() && vIndex < vBuffer.limit()) {
-                val yVal = (yBuffer.get(yIndex).toInt() and 0xFF)
-                val uVal = (uBuffer.get(uIndex).toInt() and 0xFF) - 128
-                val vVal = (vBuffer.get(vIndex).toInt() and 0xFF) - 128
-
-                val r = (yVal + 1.402f * vVal).toInt().coerceIn(0, 255)
-                val g = (yVal - 0.344136f * uVal - 0.714136f * vVal).toInt().coerceIn(0, 255)
-                val b = (yVal + 1.772f * uVal).toInt().coerceIn(0, 255)
-
-                sumR += r
-                sumG += g
-                sumB += b
-                count++
+            if (count > 0) {
+                onResult((sumR / count).toInt(), (sumG / count).toInt(), (sumB / count).toInt())
+                return
             }
         }
+    } catch (_: Throwable) {
     }
 
-    if (count > 0) {
-        val avgR = (sumR / count).toInt()
-        val avgG = (sumG / count).toInt()
-        val avgB = (sumB / count).toInt()
-        onResult(avgR, avgG, avgB)
+    // Direct YUV fallback with bounds checking
+    try {
+        val planes = image.planes
+        if (planes.size < 3) return
+
+        val yPlane = planes[0]
+        val uPlane = planes[1]
+        val vPlane = planes[2]
+
+        val yBuffer = yPlane.buffer
+        val uBuffer = uPlane.buffer
+        val vBuffer = vPlane.buffer
+
+        val width = image.width
+        val height = image.height
+        val centerX = width / 2
+        val centerY = height / 2
+        val sampleRadius = 8
+
+        var sumR = 0L
+        var sumG = 0L
+        var sumB = 0L
+        var count = 0
+
+        val yRowStride = yPlane.rowStride
+        val yPixelStride = yPlane.pixelStride
+        val uRowStride = uPlane.rowStride
+        val uPixelStride = uPlane.pixelStride
+        val vRowStride = vPlane.rowStride
+        val vPixelStride = vPlane.pixelStride
+
+        val yLimit = yBuffer.limit()
+        val uLimit = uBuffer.limit()
+        val vLimit = vBuffer.limit()
+
+        val startY = (centerY - sampleRadius).coerceAtLeast(0)
+        val endY = (centerY + sampleRadius).coerceAtMost(height - 1)
+        val startX = (centerX - sampleRadius).coerceAtLeast(0)
+        val endX = (centerX + sampleRadius).coerceAtMost(width - 1)
+
+        for (y in startY..endY) {
+            val yOffset = y * yRowStride
+            val uvY = y / 2
+            val uvOffsetU = uvY * uRowStride
+            val uvOffsetV = uvY * vRowStride
+
+            for (x in startX..endX) {
+                val yIndex = yOffset + x * yPixelStride
+                val uvX = x / 2
+                val uIndex = uvOffsetU + uvX * uPixelStride
+                val vIndex = uvOffsetV + uvX * vPixelStride
+
+                if (yIndex in 0 until yLimit && uIndex in 0 until uLimit && vIndex in 0 until vLimit) {
+                    val yVal = (yBuffer.get(yIndex).toInt() and 0xFF)
+                    val uVal = (uBuffer.get(uIndex).toInt() and 0xFF) - 128
+                    val vVal = (vBuffer.get(vIndex).toInt() and 0xFF) - 128
+
+                    val r = (yVal + 1.402f * vVal).toInt().coerceIn(0, 255)
+                    val g = (yVal - 0.344136f * uVal - 0.714136f * vVal).toInt().coerceIn(0, 255)
+                    val b = (yVal + 1.772f * uVal).toInt().coerceIn(0, 255)
+
+                    sumR += r
+                    sumG += g
+                    sumB += b
+                    count++
+                }
+            }
+        }
+
+        if (count > 0) {
+            onResult((sumR / count).toInt(), (sumG / count).toInt(), (sumB / count).toInt())
+        }
+    } catch (_: Throwable) {
     }
 }

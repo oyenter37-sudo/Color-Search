@@ -77,20 +77,20 @@ fun TargetColorCard(
     )
 
     Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = CyberSurface.copy(alpha = 0.92f),
+        shape = RoundedCornerShape(18.dp),
+        color = CyberSurface.copy(alpha = 0.94f),
         border = androidx.compose.foundation.BorderStroke(
             width = if (isMatching) 2.dp else 1.dp,
             color = if (isMatching) NeonGreen else CyberBorder
         ),
-        shadowElevation = 8.dp,
+        shadowElevation = 6.dp,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = 14.dp, vertical = 4.dp)
             .testTag("target_color_card")
     ) {
         Column(
-            modifier = Modifier.padding(14.dp)
+            modifier = Modifier.padding(10.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -99,14 +99,14 @@ fun TargetColorCard(
                 // Color Preview Disc with Glow
                 Box(
                     modifier = Modifier
-                        .size(52.dp)
+                        .size(42.dp)
                         .clip(CircleShape)
                         .background(target.color)
-                        .border(3.dp, Color.White, CircleShape)
-                        .shadow(12.dp, CircleShape, spotColor = target.color)
+                        .border(2.5.dp, Color.White, CircleShape)
+                        .shadow(8.dp, CircleShape, spotColor = target.color)
                 )
 
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(10.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
                     Row(
@@ -115,22 +115,21 @@ fun TargetColorCard(
                     ) {
                         // Category Chip
                         Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = CyberObsidian,
-                            modifier = Modifier.padding(bottom = 2.dp)
+                            shape = RoundedCornerShape(4.dp),
+                            color = CyberObsidian
                         ) {
                             Text(
                                 text = target.category.displayNameRu.uppercase(),
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = NeonCyan,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
                             )
                         }
 
                         // Rarity Chip
                         Surface(
-                            shape = RoundedCornerShape(6.dp),
+                            shape = RoundedCornerShape(4.dp),
                             color = target.rarity.badgeColor.copy(alpha = 0.2f)
                         ) {
                             Text(
@@ -138,23 +137,23 @@ fun TargetColorCard(
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.Black,
                                 color = target.rarity.badgeColor,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
                             )
                         }
                     }
 
                     Text(
                         text = target.nameRu,
-                        fontSize = 18.sp,
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.Black,
                         color = TextPrimary
                     )
 
                     Text(
-                        text = "Код: ${target.hex}",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = TextSecondary
+                        text = "Подсказка: ${target.hintRu}",
+                        fontSize = 11.sp,
+                        color = TextSecondary,
+                        maxLines = 1
                     )
                 }
 
@@ -162,44 +161,20 @@ fun TargetColorCard(
                 IconButton(
                     onClick = onRespinClick,
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(36.dp)
                         .background(CyberObsidian, CircleShape)
                         .testTag("respin_roulette_icon_button")
                 ) {
                     Icon(
                         imageVector = Icons.Default.Casino,
                         contentDescription = "Сменить цвет",
-                        tint = NeonViolet
+                        tint = NeonViolet,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Hint row
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(CyberObsidian.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
-                    .padding(horizontal = 10.dp, vertical = 6.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Lightbulb,
-                    contentDescription = null,
-                    tint = NeonPink,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = target.hintRu,
-                    fontSize = 11.sp,
-                    color = TextSecondary,
-                    maxLines = 1
-                )
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             // Accuracy progress bar & live label
             Row(
@@ -211,29 +186,29 @@ fun TargetColorCard(
                     text = when {
                         isMatching -> "🎯 ТОЧНОЕ ПОПАДАНИЕ! УДЕРЖИВАЙТЕ..."
                         accuracy >= toleranceThreshold - 15f -> "🔥 Очень близко к цели!"
-                        accuracy >= 45f -> "🔍 Похожий оттенок"
-                        else -> "Ищите предмет такого цвета..."
+                        accuracy >= 35f -> "🔍 Похожий оттенок"
+                        else -> "Наведите камеру на нужный цвет..."
                     },
-                    fontSize = 12.sp,
+                    fontSize = 11.sp,
                     fontWeight = if (isMatching) FontWeight.Bold else FontWeight.Normal,
                     color = if (isMatching) NeonGreen else TextSecondary
                 )
 
                 Text(
                     text = "${accuracy.toInt()}%",
-                    fontSize = 13.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Black,
                     color = gaugeColor
                 )
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             LinearProgressIndicator(
                 progress = { animatedAccuracy },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(6.dp)
+                    .height(5.dp)
                     .clip(RoundedCornerShape(3.dp)),
                 color = gaugeColor,
                 trackColor = CyberObsidian,

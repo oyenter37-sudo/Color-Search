@@ -148,35 +148,70 @@ class SoundManager(private val context: Context) {
         }
     }
 
-    private fun playBuffer(buffer: ShortArray) {
-        val audioTrack = AudioTrack.Builder()
-            .setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_GAME)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .build()
-            )
-            .setAudioFormat(
-                AudioFormat.Builder()
-                    .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                    .setSampleRate(sampleRate)
-                    .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-                    .build()
-            )
-            .setBufferSizeInBytes(buffer.size * 2)
-            .setTransferMode(AudioTrack.MODE_STATIC)
-            .build()
+    private var activeTrack: AudioTrack? = null
+    private val trackLock = Any()
 
-        audioTrack.write(buffer, 0, buffer.size)
-        audioTrack.play()
-        // Release after finish
-        scope.launch {
-            kotlinx.coroutines.delay((buffer.size * 1000L / sampleRate) + 50)
-            try {
-                audioTrack.stop()
-                audioTrack.release()
-            } catch (_: Exception) {
+    private fun playBuffer(buffer: ShortArray) {
+        try {
+            val minBufferSize = AudioTrack.getMinBufferSize(
+                sampleRate,
+                AudioFormat.CHANNEL_OUT_MONO,
+                AudioFormat.ENCODING_PCM_16BIT
+            )
+            val bufferSize = if (minBufferSize > 0) {
+                maxOf(buffer.size * 2, minBufferSize)
+            } else {
+                buffer.size * 2
             }
+
+            synchronized(trackLock) {
+                try {
+                    activeTrack?.stop()
+                    activeTrack?.release()
+                } catch (_: Throwable) {
+                }
+                activeTrack = null
+
+                val track = AudioTrack.Builder()
+                    .setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_GAME)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .build()
+                    )
+                    .setAudioFormat(
+                        AudioFormat.Builder()
+                            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                            .setSampleRate(sampleRate)
+                            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                            .build()
+                    )
+                    .setBufferSizeInBytes(bufferSize)
+                    .setTransferMode(AudioTrack.MODE_STATIC)
+                    .build()
+
+                track.write(buffer, 0, buffer.size)
+                track.play()
+                activeTrack = track
+
+                // Release track after playback completes
+                val durationMs = (buffer.size * 1000L / sampleRate) + 50
+                scope.launch {
+                    kotlinx.coroutines.delay(durationMs)
+                    synchronized(trackLock) {
+                        if (activeTrack == track) {
+                            try {
+                                track.stop()
+                                track.release()
+                            } catch (_: Throwable) {
+                            }
+                            activeTrack = null
+                        }
+                    }
+                }
+            }
+        } catch (_: Throwable) {
+            // Audio hardware failure or track exhaustion must never crash the game
         }
     }
 }

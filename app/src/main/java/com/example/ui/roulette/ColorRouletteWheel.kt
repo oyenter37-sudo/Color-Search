@@ -165,6 +165,9 @@ fun ColorRouletteWheel(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+        // Safe spacing below top navigation overlay
+        Spacer(modifier = Modifier.height(48.dp))
+
         // Top Header
         Text(
             text = "РУЛЕТКА ОТТЕНКОВ",

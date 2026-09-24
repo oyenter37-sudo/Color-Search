@@ -100,17 +100,17 @@ fun CameraReticle(
 
     Box(
         modifier = modifier
-            .size(240.dp)
+            .size(200.dp)
             .scale(reticleScale)
             .testTag("camera_reticle"),
         contentAlignment = Alignment.Center
     ) {
         // Sci-Fi Outer Viewfinder Canvas (Ticks & Corner Brackets)
-        Canvas(modifier = Modifier.size(240.dp)) {
+        Canvas(modifier = Modifier.size(200.dp)) {
             val center = Offset(size.width / 2f, size.height / 2f)
-            val bracketLength = 22.dp.toPx()
-            val bracketOffset = 24.dp.toPx()
-            val strokeWidth = 2.5.dp.toPx()
+            val bracketLength = 18.dp.toPx()
+            val bracketOffset = 16.dp.toPx()
+            val strokeWidth = 2.dp.toPx()
 
             // Corner Brackets: Top-Left
             drawLine(
@@ -177,8 +177,8 @@ fun CameraReticle(
             )
 
             // Crosshair Guides
-            val guideDist = 58.dp.toPx()
-            val guideLen = 14.dp.toPx()
+            val guideDist = 48.dp.toPx()
+            val guideLen = 12.dp.toPx()
             drawLine(
                 color = reticleColor.copy(alpha = 0.6f),
                 start = Offset(center.x, center.y - guideDist - guideLen),
@@ -206,7 +206,7 @@ fun CameraReticle(
 
             // Lock-On Circular Progress Ring
             if (lockOnProgress > 0f) {
-                val lockRadius = 50.dp.toPx()
+                val lockRadius = 44.dp.toPx()
                 drawArc(
                     color = NeonGreen,
                     startAngle = -90f,
@@ -214,7 +214,7 @@ fun CameraReticle(
                     useCenter = false,
                     topLeft = Offset(center.x - lockRadius, center.y - lockRadius),
                     size = Size(lockRadius * 2, lockRadius * 2),
-                    style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round)
+                    style = Stroke(width = 3.5.dp.toPx(), cap = StrokeCap.Round)
                 )
             }
         }
@@ -223,17 +223,17 @@ fun CameraReticle(
         if (!isCelebrating) {
             Box(
                 modifier = Modifier
-                    .size(80.dp)
+                    .size(68.dp)
                     .clip(CircleShape)
                     .background(sampledColor)
-                    .border(3.5.dp, reticleColor, CircleShape)
-                    .shadow(16.dp, CircleShape),
+                    .border(3.dp, reticleColor, CircleShape)
+                    .shadow(12.dp, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 // Center reticle dot
                 Box(
                     modifier = Modifier
-                        .size(8.dp)
+                        .size(7.dp)
                         .clip(CircleShape)
                         .background(Color.White)
                 )
@@ -242,18 +242,18 @@ fun CameraReticle(
             // Triumphant Checkmark on Success!
             Box(
                 modifier = Modifier
-                    .size(92.dp)
+                    .size(76.dp)
                     .clip(CircleShape)
                     .background(NeonGreen)
-                    .border(4.dp, Color.White, CircleShape)
-                    .shadow(24.dp, CircleShape, spotColor = NeonGreen),
+                    .border(3.5.dp, Color.White, CircleShape)
+                    .shadow(20.dp, CircleShape, spotColor = NeonGreen),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = "Цвет найден!",
                     tint = Color.Black,
-                    modifier = Modifier.size(54.dp)
+                    modifier = Modifier.size(44.dp)
                 )
             }
         }

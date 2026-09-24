@@ -130,7 +130,7 @@ fun SettingsDialog(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Tolerance / Difficulty Level
+                // Tolerance / Difficulty Level (Only Easy mode active as requested)
                 Surface(
                     shape = RoundedCornerShape(16.dp),
                     color = CyberSurface,
@@ -138,52 +138,68 @@ fun SettingsDialog(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "РЕЖИМ СЛОЖНОСТИ",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = NeonCyan
+                            )
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = NeonGreen.copy(alpha = 0.18f),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, NeonGreen.copy(alpha = 0.6f))
+                            ) {
+                                Text(
+                                    text = "АКТИВЕН",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = NeonGreen,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "СЛОЖНОСТЬ / ПОГРЕШНОСТЬ",
-                            fontSize = 12.sp,
+                            text = "🟢 Лёгкий режим (50% точности)",
+                            fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
-                            color = NeonCyan
+                            color = TextPrimary
                         )
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Установите необходимую точность для захвата цвета",
-                            fontSize = 13.sp,
+                            text = "Погрешность смягчена! Вы легко найдете оттенки дома и на улице даже при обычном комнатном освещении и тенях.",
+                            fontSize = 12.sp,
                             color = TextSecondary
                         )
 
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        FilterChip(
+                            selected = true,
+                            onClick = { onToleranceChange(50f) },
+                            label = {
+                                Text("✓ Лёгкий — комфортный поиск (50%)", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = NeonCyan,
+                                selectedLabelColor = Color.Black,
+                                containerColor = CyberObsidian,
+                                labelColor = TextSecondary
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = true,
+                                borderColor = NeonCyan,
+                                selectedBorderColor = NeonCyan
+                            ),
                             modifier = Modifier.fillMaxWidth()
-                        ) {
-                            val options = listOf(
-                                Triple(65f, "Легко (65%)", "Быстрая игра"),
-                                Triple(75f, "Норма (75%)", "Баланс"),
-                                Triple(85f, "Мастер (85%)", "Хардкор")
-                            )
-
-                            for ((threshold, label, _) in options) {
-                                val isSelected = kotlin.math.abs(toleranceThreshold - threshold) < 1f
-                                FilterChip(
-                                    selected = isSelected,
-                                    onClick = { onToleranceChange(threshold) },
-                                    label = { Text(label, fontSize = 11.sp) },
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = NeonCyan,
-                                        selectedLabelColor = Color.Black,
-                                        containerColor = CyberObsidian,
-                                        labelColor = TextSecondary
-                                    ),
-                                    border = FilterChipDefaults.filterChipBorder(
-                                        enabled = true,
-                                        selected = isSelected,
-                                        borderColor = CyberBorder,
-                                        selectedBorderColor = NeonCyan
-                                    ),
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
-                        }
+                        )
                     }
                 }
 

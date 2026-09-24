@@ -55,7 +55,8 @@ object ColorUtils {
 
     /**
      * Calculates match score (0..100%).
-     * With tolerance threshold (typically 75% for game success).
+     * Uses a generous, player-friendly curve accounting for smartphone camera lighting,
+     * ambient shadows, and sensor white balance variations.
      */
     fun calculateAccuracy(
         sampledR: Int,
@@ -65,23 +66,38 @@ object ColorUtils {
         targetG: Int,
         targetB: Int
     ): Float {
-        val deltaE = calculateDeltaE(sampledR, sampledG, sampledB, targetR, targetG, targetB)
-        
-        // Also check HSV Hue proximity to reward matching color family
+        val sR = sampledR.coerceIn(0, 255)
+        val sG = sampledG.coerceIn(0, 255)
+        val sB = sampledB.coerceIn(0, 255)
+        val tR = targetR.coerceIn(0, 255)
+        val tG = targetG.coerceIn(0, 255)
+        val tB = targetB.coerceIn(0, 255)
+
+        val deltaE = calculateDeltaE(sR, sG, sB, tR, tG, tB)
+
+        // Check HSV Hue proximity to reward matching the intended color family
         val hsvSampled = FloatArray(3)
         val hsvTarget = FloatArray(3)
-        android.graphics.Color.RGBToHSV(sampledR, sampledG, sampledB, hsvSampled)
-        android.graphics.Color.RGBToHSV(targetR, targetG, targetB, hsvTarget)
+        android.graphics.Color.RGBToHSV(sR, sG, sB, hsvSampled)
+        android.graphics.Color.RGBToHSV(tR, tG, tB, hsvTarget)
 
         var hueDiff = kotlin.math.abs(hsvSampled[0] - hsvTarget[0])
         if (hueDiff > 180f) hueDiff = 360f - hueDiff
-        val hueFactor = (1f - (hueDiff / 180f)).coerceIn(0f, 1f)
 
-        // Delta-E mapping: deltaE=0 -> 100%, deltaE=20 -> ~80%, deltaE=45 -> ~50%, deltaE>70 -> low
-        val deltaScore = (1.0f - (deltaE / 55.0f)).coerceIn(0f, 1f)
-        
-        // Combined weighted score
-        val finalScore = (deltaScore * 0.75f + hueFactor * 0.25f) * 100f
+        // If target or sample has very low saturation (grays/whites/blacks), hue is less relevant than lightness/value
+        val isAchromatic = hsvTarget[1] < 0.15f || hsvSampled[1] < 0.12f
+        val hueFactor = if (isAchromatic) {
+            val valDiff = kotlin.math.abs(hsvSampled[2] - hsvTarget[2])
+            (1f - valDiff).coerceIn(0f, 1f)
+        } else {
+            (1f - (hueDiff / 140f)).coerceIn(0f, 1f)
+        }
+
+        // Forgiving Delta-E curve: deltaE of 40-50 still gives a healthy match in real world lighting
+        val deltaScore = (1.0f - (deltaE / 88.0f)).coerceIn(0f, 1f)
+
+        // Balanced combination giving credit to finding the right color object
+        val finalScore = (deltaScore * 0.52f + hueFactor * 0.48f) * 100f
         return finalScore.coerceIn(0f, 100f)
     }
 

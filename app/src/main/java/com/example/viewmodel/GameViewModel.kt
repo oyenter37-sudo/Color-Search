@@ -68,7 +68,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private val _lockOnProgress = MutableStateFlow(0f)
     val lockOnProgress: StateFlow<Float> = _lockOnProgress.asStateFlow()
 
-    private val _toleranceThreshold = MutableStateFlow(75f)
+    private val _toleranceThreshold = MutableStateFlow(50f)
     val toleranceThreshold: StateFlow<Float> = _toleranceThreshold.asStateFlow()
 
     private val _isTorchOn = MutableStateFlow(false)
@@ -91,9 +91,16 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     val shakeOffsetY = Animatable(0f)
 
     private var lockOnJob: Job? = null
+    private var shakeJob: Job? = null
+    private var celebrationJob: Job? = null
     private var lastSonarSoundTime = 0L
+    private var isProcessingSuccess = false
 
     fun onRouletteColorChosen(color: HuntColor) {
+        lockOnJob?.cancel()
+        shakeJob?.cancel()
+        celebrationJob?.cancel()
+        isProcessingSuccess = false
         _targetColor.value = color
         _lockOnProgress.value = 0f
         _gamePhase.value = GamePhase.HUNTING
@@ -101,12 +108,15 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     fun openRoulette() {
         lockOnJob?.cancel()
+        shakeJob?.cancel()
+        celebrationJob?.cancel()
+        isProcessingSuccess = false
         _lockOnProgress.value = 0f
         _gamePhase.value = GamePhase.ROULETTE
     }
 
     fun onColorSampled(r: Int, g: Int, b: Int) {
-        if (_gamePhase.value != GamePhase.HUNTING) return
+        if (_gamePhase.value != GamePhase.HUNTING || isProcessingSuccess) return
 
         _sampledR.value = r
         _sampledG.value = g
@@ -125,29 +135,31 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
         val threshold = _toleranceThreshold.value
         if (accuracy >= threshold) {
-            // Closeness radar sound
+            // Closeness radar sound (rate limited to avoid audio spam)
             val now = System.currentTimeMillis()
-            if (now - lastSonarSoundTime > 350) {
+            if (now - lastSonarSoundTime > 380) {
                 lastSonarSoundTime = now
                 soundManager.playSonarPing(accuracy)
             }
 
-            // Advance lock on progress
+            // Advance lock on progress (~5-6 ticks to lock on)
             advanceLockOn()
         } else {
-            // Decay lock-on progress
+            // Gentle decay lock-on progress
             if (_lockOnProgress.value > 0f) {
-                _lockOnProgress.value = (_lockOnProgress.value - 0.15f).coerceAtLeast(0f)
+                _lockOnProgress.value = (_lockOnProgress.value - 0.12f).coerceAtLeast(0f)
             }
         }
     }
 
     private fun advanceLockOn() {
+        if (isProcessingSuccess || _gamePhase.value != GamePhase.HUNTING) return
         val current = _lockOnProgress.value
-        val next = current + 0.12f // ~8-9 ticks to reach 1.0 (approx 800-1000ms)
+        val next = current + 0.18f
         _lockOnProgress.value = next.coerceAtMost(1f)
 
-        if (next >= 1.0f && _gamePhase.value == GamePhase.HUNTING) {
+        if (next >= 1.0f) {
+            isProcessingSuccess = true
             triggerSuccess()
         }
     }
@@ -164,29 +176,42 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
         // Record in Database
         viewModelScope.launch {
-            repository.recordCapture(target, r, g, b, accuracy)
+            try {
+                repository.recordCapture(target, r, g, b, accuracy)
+            } catch (_: Throwable) {
+            }
         }
 
-        // Play sounds & haptics
+        // Play sounds & haptics safely
         soundManager.playVictoryChord()
         soundManager.vibrateVictory()
 
-        // Trigger violent screen shake
-        viewModelScope.launch {
-            val shakeStrength = 22f
-            for (i in 0 until 8) {
-                val dx = (Random.nextFloat() * 2f - 1f) * shakeStrength * (1f - i / 8f)
-                val dy = (Random.nextFloat() * 2f - 1f) * shakeStrength * (1f - i / 8f)
-                shakeOffsetX.animateTo(dx, tween(35))
-                shakeOffsetY.animateTo(dy, tween(35))
+        // Screen shake animation
+        shakeJob?.cancel()
+        shakeJob = viewModelScope.launch {
+            try {
+                val shakeStrength = 18f
+                for (i in 0 until 6) {
+                    val dx = (Random.nextFloat() * 2f - 1f) * shakeStrength * (1f - i / 6f)
+                    val dy = (Random.nextFloat() * 2f - 1f) * shakeStrength * (1f - i / 6f)
+                    shakeOffsetX.animateTo(dx, tween(30))
+                    shakeOffsetY.animateTo(dy, tween(30))
+                }
+                shakeOffsetX.animateTo(0f, tween(40))
+                shakeOffsetY.animateTo(0f, tween(40))
+            } catch (_: Throwable) {
+                try {
+                    shakeOffsetX.snapTo(0f)
+                    shakeOffsetY.snapTo(0f)
+                } catch (_: Throwable) {}
             }
-            shakeOffsetX.animateTo(0f, tween(50))
-            shakeOffsetY.animateTo(0f, tween(50))
         }
 
         // Celebrate for 2.2 seconds, then return to roulette wheel to spin again!
-        viewModelScope.launch {
-            delay(2400)
+        celebrationJob?.cancel()
+        celebrationJob = viewModelScope.launch {
+            delay(2200)
+            isProcessingSuccess = false
             _lockOnProgress.value = 0f
             _gamePhase.value = GamePhase.ROULETTE
         }

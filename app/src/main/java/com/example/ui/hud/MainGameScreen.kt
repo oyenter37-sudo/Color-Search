@@ -35,9 +35,6 @@ import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.FlipCameraAndroid
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
@@ -45,12 +42,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -68,7 +62,6 @@ import com.example.ui.theme.CyberObsidian
 import com.example.ui.theme.CyberSurface
 import com.example.ui.theme.NeonAmber
 import com.example.ui.theme.NeonCyan
-import com.example.ui.theme.NeonGreen
 import com.example.ui.theme.NeonPink
 import com.example.ui.theme.NeonViolet
 import com.example.ui.theme.TextPrimary
@@ -108,7 +101,7 @@ fun MainGameScreen(
             .offset { IntOffset(shakeX.roundToInt(), shakeY.roundToInt()) }
             .testTag("main_game_screen")
     ) {
-        // Main Content depending on GamePhase
+        // Main Screen Area
         if (gamePhase == GamePhase.ROULETTE) {
             ColorRouletteWheel(
                 soundManager = viewModel.soundManager,
@@ -140,22 +133,6 @@ fun MainGameScreen(
                 )
             }
 
-            // Top Target Card (with status bars padding)
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.TopCenter)
-                    .windowInsetsPadding(WindowInsets.statusBars)
-            ) {
-                TargetColorCard(
-                    target = targetColor,
-                    accuracy = liveAccuracy,
-                    toleranceThreshold = toleranceThreshold,
-                    isMatching = liveAccuracy >= toleranceThreshold,
-                    onRespinClick = { viewModel.openRoulette() }
-                )
-            }
-
             // Bottom Controls Bar (with navigation bars padding)
             Column(
                 modifier = Modifier
@@ -179,11 +156,11 @@ fun MainGameScreen(
                 // Floating Action Glass Dock
                 Surface(
                     shape = RoundedCornerShape(24.dp),
-                    color = CyberSurface.copy(alpha = 0.92f),
+                    color = CyberSurface.copy(alpha = 0.94f),
                     border = androidx.compose.foundation.BorderStroke(1.dp, CyberBorder),
-                    shadowElevation = 12.dp,
+                    shadowElevation = 10.dp,
                     modifier = Modifier
-                        .padding(horizontal = 20.dp, vertical = 6.dp)
+                        .padding(horizontal = 20.dp, vertical = 4.dp)
                         .fillMaxWidth()
                 ) {
                     Row(
@@ -290,93 +267,112 @@ fun MainGameScreen(
             )
         }
 
-        // Top Navigation Overlays (Common across screens)
-        Row(
+        // UNIFIED Top Area: Status Bar + Branding & Buttons + TargetCard (NEVER OVERLAPS)
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .align(Alignment.TopCenter)
                 .windowInsetsPadding(WindowInsets.statusBars)
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+                .padding(top = 4.dp)
         ) {
-            // App Branding Chip
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = CyberSurface.copy(alpha = 0.88f),
-                border = androidx.compose.foundation.BorderStroke(1.dp, CyberBorder)
+            // Top Navigation Bar
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Palette,
-                        contentDescription = null,
-                        tint = NeonCyan,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "CHROMA HUNT",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = 1.sp,
-                        color = TextPrimary
-                    )
-                }
-            }
-
-            // Action Buttons: Collection, Quests, Settings
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                // Color Dex button with badge
+                // App Branding Chip
                 Surface(
                     shape = RoundedCornerShape(12.dp),
-                    color = CyberSurface.copy(alpha = 0.88f),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, CyberBorder),
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable { viewModel.openDialog(ActiveDialog.COLOR_DEX) }
-                        .testTag("open_color_dex_button")
+                    color = CyberSurface.copy(alpha = 0.92f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, CyberBorder)
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Collections,
-                            contentDescription = "Коллекция",
-                            tint = NeonPink,
+                            imageVector = Icons.Default.Palette,
+                            contentDescription = null,
+                            tint = NeonCyan,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "$distinctFoundCount / 20",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = NeonPink
+                            text = "CHROMA HUNT",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 1.sp,
+                            color = TextPrimary
                         )
                     }
                 }
 
-                // Settings button
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = CyberSurface.copy(alpha = 0.88f),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, CyberBorder),
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable { viewModel.openDialog(ActiveDialog.SETTINGS) }
-                        .testTag("open_settings_button")
-                ) {
-                    Box(modifier = Modifier.padding(8.dp)) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Настройки",
-                            tint = TextSecondary,
-                            modifier = Modifier.size(18.dp)
-                        )
+                // Action Buttons: Collection & Settings
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Color Dex button with badge
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = CyberSurface.copy(alpha = 0.92f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, CyberBorder),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { viewModel.openDialog(ActiveDialog.COLOR_DEX) }
+                            .testTag("open_color_dex_button")
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Collections,
+                                contentDescription = "Коллекция",
+                                tint = NeonPink,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "$distinctFoundCount / 20",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = NeonPink
+                            )
+                        }
+                    }
+
+                    // Settings button
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = CyberSurface.copy(alpha = 0.92f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, CyberBorder),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { viewModel.openDialog(ActiveDialog.SETTINGS) }
+                            .testTag("open_settings_button")
+                    ) {
+                        Box(modifier = Modifier.padding(8.dp)) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "Настройки",
+                                tint = TextSecondary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
                 }
+            }
+
+            // Target Color Card (Placed directly under the top bar, in same column - no overlap!)
+            if (gamePhase != GamePhase.ROULETTE) {
+                TargetColorCard(
+                    target = targetColor,
+                    accuracy = liveAccuracy,
+                    toleranceThreshold = toleranceThreshold,
+                    isMatching = liveAccuracy >= toleranceThreshold,
+                    onRespinClick = { viewModel.openRoulette() }
+                )
             }
         }
 
